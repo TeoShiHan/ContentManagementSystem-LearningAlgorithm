@@ -43,21 +43,24 @@ export class FileService {
     return this.http.get<{ [key: string]: string }>(`${this.apiUrl}/supported-types`);
   }
 
+  /** Ask the backend to open the file with the OS default app (e.g. VS Code, Excalidraw desktop). */
+  openFileLocally(fileId: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${fileId}/open-local`, {});
+  }
+
+  getStoragePath(): Observable<{ path: string }> {
+    return this.http.get<{ path: string }>(`${this.apiUrl}/config/storage-path`);
+  }
+
+  setStoragePath(path: string): Observable<{ path: string }> {
+    return this.http.post<{ path: string }>(`${this.apiUrl}/config/storage-path`, { path });
+  }
+
   openFile(file: ProblemFile): void {
-    switch (file.openWith) {
-      case 'web-excalidraw':
-        // Load content and open in Excalidraw
-        window.open('https://excalidraw.com/', '_blank');
-        break;
-      case 'web-drawio':
-        window.open('https://app.diagrams.net/', '_blank');
-        break;
-      case 'vscode':
-        // Download to open in local editor
-        window.open(this.getDownloadUrl(file.id), '_blank');
-        break;
-      default:
-        window.open(this.getDownloadUrl(file.id), '_blank');
-    }
+    // Always open via backend so the OS uses the correct native app
+    this.openFileLocally(file.id).subscribe({
+      error: (err) => console.error('Failed to open file locally:', err)
+    });
   }
 }
+

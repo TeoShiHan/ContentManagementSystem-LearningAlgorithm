@@ -15,4 +15,8 @@ public interface FileStorageService {
     void deleteFile(Long fileId);
     void deleteProblemDirectory(Long problemId);
     List<ProblemFile> getFilesForProblem(Long problemId);
+    void openFileLocally(Long fileId);
+    String getAbsolutePath(Long fileId);
+    String getStorageBasePath();
+    void setStorageBasePath(String newPath);
 }

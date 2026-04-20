@@ -43,6 +43,12 @@ export class ProblemTableComponent implements OnInit {
   previewFileName = '';
   previewVisible = false;
 
+  // Settings modal
+  showSettingsModal = false;
+  settingsPath = '';
+  settingsMessage = '';
+  settingsError = false;
+
   // Constants
   difficulties = DIFFICULTIES;
   questionTypes = QUESTION_TYPES;
@@ -55,6 +61,10 @@ export class ProblemTableComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadProblems();
+    this.fileService.getStoragePath().subscribe({
+      next: (res) => this.settingsPath = res.path,
+      error: () => {}
+    });
   }
 
   loadProblems(): void {
@@ -209,6 +219,32 @@ export class ProblemTableComponent implements OnInit {
   hidePreview(): void {
     this.previewVisible = false;
     this.previewContent = null;
+  }
+
+  // Settings modal
+  openSettingsModal(): void {
+    this.settingsMessage = '';
+    this.settingsError = false;
+    this.showSettingsModal = true;
+  }
+
+  closeSettingsModal(): void {
+    this.showSettingsModal = false;
+  }
+
+  saveStoragePath(): void {
+    if (!this.settingsPath) return;
+    this.fileService.setStoragePath(this.settingsPath).subscribe({
+      next: (res) => {
+        this.settingsPath = res.path;
+        this.settingsMessage = 'Storage path updated successfully!';
+        this.settingsError = false;
+      },
+      error: (err) => {
+        this.settingsMessage = 'Failed to update path: ' + (err.error?.error || err.message);
+        this.settingsError = true;
+      }
+    });
   }
 
   // Helpers

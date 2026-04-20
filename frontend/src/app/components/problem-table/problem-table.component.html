@@ -26,6 +26,9 @@
   <button class="btn btn-primary" (click)="openCreateModal()">
     <span class="material-icons">add</span> Add Problem
   </button>
+  <button class="btn btn-secondary" (click)="openSettingsModal()" title="Configure storage path">
+    <span class="material-icons">folder_open</span> Storage Path
+  </button>
 </div>
 
 <!-- Problems Table -->
@@ -208,4 +211,35 @@
     {{ previewFileName }}
   </div>
   <pre class="preview-content">{{ previewContent }}</pre>
+</div>
+
+<!-- Storage Path Settings Modal -->
+<div class="modal-overlay" *ngIf="showSettingsModal" (click)="closeSettingsModal()">
+  <div class="modal modal-sm" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2><span class="material-icons" style="vertical-align:middle;margin-right:6px">folder_open</span>Storage Path</h2>
+      <button class="btn-icon" (click)="closeSettingsModal()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p style="margin:0 0 10px;font-size:13px;color:#888;">
+        Set the local folder where problem files are stored. The backend will read and write files from this path.
+        Files are opened directly in their native apps (VS&nbsp;Code, Excalidraw&nbsp;desktop, etc.).
+      </p>
+      <div class="form-group">
+        <label>Local Folder Path</label>
+        <input type="text" [(ngModel)]="settingsPath"
+               placeholder="e.g. C:\Users\you\Documents\leetcode-files"
+               style="font-family:monospace">
+      </div>
+      <div *ngIf="settingsMessage" class="settings-msg" [class.settings-error]="settingsError">
+        {{ settingsMessage }}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeSettingsModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveStoragePath()" [disabled]="!settingsPath">Apply</button>
+    </div>
+  </div>
 </div>

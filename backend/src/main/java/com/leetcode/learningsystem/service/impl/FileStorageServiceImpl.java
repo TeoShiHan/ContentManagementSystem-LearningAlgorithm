@@ -179,6 +179,43 @@ public class FileStorageServiceImpl implements FileStorageService {
         return fileRepository.findByProblemId(problemId);
     }
 
+    @Override
+    public void openFileLocally(Long fileId) {
+        String absPath = getAbsolutePath(fileId);
+        try {
+            // Use Windows "start" to open with default associated application
+            ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "start", "", absPath);
+            pb.redirectErrorStream(true);
+            pb.start();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to open file locally: " + absPath, e);
+        }
+    }
+
+    @Override
+    public String getAbsolutePath(Long fileId) {
+        ProblemFile pf = fileRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
+        return storageRoot.resolve(pf.getFilePath()).normalize().toString();
+    }
+
+    @Override
+    public String getStorageBasePath() {
+        return storageRoot.toString();
+    }
+
+    @Override
+    public void setStorageBasePath(String newPath) {
+        Path newRoot = Paths.get(newPath).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(newRoot);
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot create/access directory: " + newPath, e);
+        }
+        this.storageRoot = newRoot;
+        this.basePath = newPath;
+    }
+
     private String sanitizeFileName(String name) {
         if (name == null) return "unnamed";
         // Only allow alphanumeric, dots, hyphens, underscores

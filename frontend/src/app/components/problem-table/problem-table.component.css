@@ -458,6 +458,23 @@
   opacity: 0.3;
 }
 
+/* Settings feedback */
+.settings-msg {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: rgba(72, 199, 142, 0.15);
+  color: #48c78e;
+  border: 1px solid rgba(72, 199, 142, 0.3);
+}
+
+.settings-msg.settings-error {
+  background: rgba(241, 70, 104, 0.15);
+  color: #f14668;
+  border-color: rgba(241, 70, 104, 0.3);
+}
+
 /* Link icon */
 .col-link a {
   color: var(--accent-blue);

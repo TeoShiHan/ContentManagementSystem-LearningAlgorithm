@@ -79,6 +79,33 @@ public class FileController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{fileId}/open-local")
+    public ResponseEntity<Void> openFileLocally(@PathVariable Long fileId) {
+        fileStorageService.openFileLocally(fileId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{fileId}/absolute-path")
+    public ResponseEntity<Map<String, String>> getAbsolutePath(@PathVariable Long fileId) {
+        String path = fileStorageService.getAbsolutePath(fileId);
+        return ResponseEntity.ok(Map.of("path", path));
+    }
+
+    @GetMapping("/config/storage-path")
+    public ResponseEntity<Map<String, String>> getStoragePath() {
+        return ResponseEntity.ok(Map.of("path", fileStorageService.getStorageBasePath()));
+    }
+
+    @PostMapping("/config/storage-path")
+    public ResponseEntity<Map<String, String>> setStoragePath(@RequestBody Map<String, String> body) {
+        String newPath = body.get("path");
+        if (newPath == null || newPath.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Path must not be empty"));
+        }
+        fileStorageService.setStorageBasePath(newPath.trim());
+        return ResponseEntity.ok(Map.of("path", fileStorageService.getStorageBasePath()));
+    }
+
     @GetMapping("/supported-types")
     public ResponseEntity<Map<String, String>> getSupportedTypes() {
         return ResponseEntity.ok(fileTypeRegistry.getSupportedTypes());
