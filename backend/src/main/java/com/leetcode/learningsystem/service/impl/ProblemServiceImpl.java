@@ -1,116 +1,138 @@
 package com.leetcode.learningsystem.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leetcode.learningsystem.dto.*;
 import com.leetcode.learningsystem.model.*;
-import com.leetcode.learningsystem.repository.*;
 import com.leetcode.learningsystem.service.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
 public class ProblemServiceImpl implements ProblemService {
 
-    private final ProblemRepository problemRepository;
-    private final ProblemFileRepository fileRepository;
     private final FileStorageService fileStorageService;
     private final FileTypeRegistry fileTypeRegistry;
+    private final ObjectMapper objectMapper;
 
-    public ProblemServiceImpl(ProblemRepository problemRepository,
-                              ProblemFileRepository fileRepository,
-                              FileStorageService fileStorageService,
-                              FileTypeRegistry fileTypeRegistry) {
-        this.problemRepository = problemRepository;
-        this.fileRepository = fileRepository;
+    public ProblemServiceImpl(FileStorageService fileStorageService,
+                              FileTypeRegistry fileTypeRegistry,
+                              ObjectMapper objectMapper) {
         this.fileStorageService = fileStorageService;
         this.fileTypeRegistry = fileTypeRegistry;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public ProblemResponse createProblem(ProblemRequest request) {
-        Problem problem = Problem.builder()
-                .problemCode(request.getProblemCode())
-                .title(request.getTitle())
-                .leetcodeLink(request.getLeetcodeLink())
-                .questionType(request.getQuestionType())
-                .solution(request.getSolution())
-                .difficulty(request.getDifficulty())
-                .customRank(request.getCustomRank())
-                .build();
+        String folderName = buildFolderName(request.getProblemCode(), request.getTitle());
+        Path storageRoot = fileStorageService.getStorageRoot();
+        Path problemDir = storageRoot.resolve(folderName);
 
-        problem = problemRepository.save(problem);
-        return toResponse(problem);
+        if (Files.exists(problemDir)) {
+            // Append a counter to avoid collision
+            int counter = 2;
+            while (Files.exists(storageRoot.resolve(folderName + "_" + counter))) {
+                counter++;
+            }
+            folderName = folderName + "_" + counter;
+            problemDir = storageRoot.resolve(folderName);
+        }
+
+        try {
+            Files.createDirectories(problemDir);
+            writeProblemJson(problemDir, request);
+            return toResponse(folderName, readProblemJson(problemDir), scanFiles(problemDir));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to create problem", e);
+        }
     }
 
     @Override
-    public ProblemResponse updateProblem(Long id, ProblemRequest request) {
-        Problem problem = problemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Problem not found: " + id));
-
-        problem.setProblemCode(request.getProblemCode());
-        problem.setTitle(request.getTitle());
-        problem.setLeetcodeLink(request.getLeetcodeLink());
-        problem.setQuestionType(request.getQuestionType());
-        problem.setSolution(request.getSolution());
-        problem.setDifficulty(request.getDifficulty());
-        problem.setCustomRank(request.getCustomRank());
-
-        problem = problemRepository.save(problem);
-        return toResponse(problem);
+    public ProblemResponse updateProblem(String id, ProblemRequest request) {
+        Path problemDir = fileStorageService.getStorageRoot().resolve(id);
+        if (!Files.isDirectory(problemDir)) {
+            throw new RuntimeException("Problem not found: " + id);
+        }
+        try {
+            writeProblemJson(problemDir, request);
+            return toResponse(id, readProblemJson(problemDir), scanFiles(problemDir));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to update problem", e);
+        }
     }
 
     @Override
-    public ProblemResponse getProblem(Long id) {
-        Problem problem = problemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Problem not found: " + id));
-        return toResponse(problem);
+    public ProblemResponse getProblem(String id) {
+        Path problemDir = fileStorageService.getStorageRoot().resolve(id);
+        if (!Files.isDirectory(problemDir)) {
+            throw new RuntimeException("Problem not found: " + id);
+        }
+        try {
+            return toResponse(id, readProblemJson(problemDir), scanFiles(problemDir));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read problem", e);
+        }
     }
 
     @Override
     public List<ProblemResponse> getAllProblems() {
-        return problemRepository.findAll().stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<ProblemResponse> results = new ArrayList<>();
+        Path storageRoot = fileStorageService.getStorageRoot();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(storageRoot, Files::isDirectory)) {
+            for (Path dir : stream) {
+                Path metaFile = dir.resolve("problem.json");
+                if (!Files.exists(metaFile)) continue;
+                try {
+                    Problem problem = readProblemJson(dir);
+                    results.add(toResponse(dir.getFileName().toString(), problem, scanFiles(dir)));
+                } catch (Exception e) {
+                    // Skip malformed entries
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to scan storage directory", e);
+        }
+        return results;
     }
 
     @Override
     public List<ProblemResponse> queryProblems(Difficulty difficulty, QuestionType questionType,
                                                 Integer minRank, Integer maxRank, String search) {
-        return problemRepository.findByFilters(difficulty, questionType, minRank, maxRank, search)
-                .stream()
-                .map(this::toResponse)
+        return getAllProblems().stream()
+                .filter(p -> difficulty == null || p.getDifficulty() == difficulty)
+                .filter(p -> questionType == null || p.getQuestionType() == questionType)
+                .filter(p -> minRank == null || p.getCustomRank() >= minRank)
+                .filter(p -> maxRank == null || p.getCustomRank() <= maxRank)
+                .filter(p -> search == null || search.isBlank() ||
+                        p.getTitle().toLowerCase().contains(search.toLowerCase()) ||
+                        p.getProblemCode().toLowerCase().contains(search.toLowerCase()))
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void deleteProblem(Long id) {
+    public void deleteProblem(String id) {
         fileStorageService.deleteProblemDirectory(id);
-        fileRepository.deleteByProblemId(id);
-        problemRepository.deleteById(id);
     }
 
     @Override
     public StatsResponse getStats() {
-        long total = problemRepository.count();
-        long easy = problemRepository.countByDifficulty(Difficulty.EASY);
-        long medium = problemRepository.countByDifficulty(Difficulty.MEDIUM);
-        long hard = problemRepository.countByDifficulty(Difficulty.HARD);
+        List<ProblemResponse> all = getAllProblems();
+        long total = all.size();
+        long easy = all.stream().filter(p -> p.getDifficulty() == Difficulty.EASY).count();
+        long medium = all.stream().filter(p -> p.getDifficulty() == Difficulty.MEDIUM).count();
+        long hard = all.stream().filter(p -> p.getDifficulty() == Difficulty.HARD).count();
 
         Map<String, Long> byType = new LinkedHashMap<>();
         for (QuestionType qt : QuestionType.values()) {
-            long count = problemRepository.countByQuestionType(qt);
-            if (count > 0) {
-                byType.put(qt.name(), count);
-            }
+            long count = all.stream().filter(p -> p.getQuestionType() == qt).count();
+            if (count > 0) byType.put(qt.name(), count);
         }
 
-        double avgRank = problemRepository.findAll().stream()
-                .mapToInt(Problem::getCustomRank)
-                .average()
-                .orElse(0.0);
+        double avgRank = all.stream().mapToInt(ProblemResponse::getCustomRank).average().orElse(0.0);
 
         return StatsResponse.builder()
                 .totalProblems(total)
@@ -122,14 +144,49 @@ public class ProblemServiceImpl implements ProblemService {
                 .build();
     }
 
-    private ProblemResponse toResponse(Problem problem) {
-        List<ProblemFile> files = fileRepository.findByProblemId(problem.getId());
-        List<ProblemFileResponse> fileResponses = files.stream()
-                .map(this::toFileResponse)
-                .collect(Collectors.toList());
+    // ---- helpers ----
 
+    private Problem readProblemJson(Path problemDir) throws IOException {
+        return objectMapper.readValue(problemDir.resolve("problem.json").toFile(), Problem.class);
+    }
+
+    private void writeProblemJson(Path problemDir, ProblemRequest request) throws IOException {
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("problemCode", request.getProblemCode());
+        data.put("title", request.getTitle());
+        data.put("leetcodeLink", request.getLeetcodeLink());
+        data.put("questionType", request.getQuestionType());
+        data.put("solution", request.getSolution());
+        data.put("difficulty", request.getDifficulty());
+        data.put("customRank", request.getCustomRank());
+        objectMapper.writerWithDefaultPrettyPrinter()
+                .writeValue(problemDir.resolve("problem.json").toFile(), data);
+    }
+
+    private List<ProblemFileResponse> scanFiles(Path problemDir) throws IOException {
+        List<ProblemFileResponse> files = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(problemDir)) {
+            for (Path file : stream) {
+                if (Files.isDirectory(file)) continue;
+                String name = file.getFileName().toString();
+                if ("problem.json".equals(name)) continue;
+                String ext = getExtension(name);
+                files.add(ProblemFileResponse.builder()
+                        .id(name)
+                        .fileName(name)
+                        .fileExtension(ext)
+                        .filePath(file.toAbsolutePath().toString())
+                        .fileSize(Files.size(file))
+                        .openWith(fileTypeRegistry.getOpenWith(ext))
+                        .build());
+            }
+        }
+        return files;
+    }
+
+    private ProblemResponse toResponse(String folderName, Problem problem, List<ProblemFileResponse> files) {
         return ProblemResponse.builder()
-                .id(problem.getId())
+                .id(folderName)
                 .problemCode(problem.getProblemCode())
                 .title(problem.getTitle())
                 .leetcodeLink(problem.getLeetcodeLink())
@@ -137,21 +194,20 @@ public class ProblemServiceImpl implements ProblemService {
                 .solution(problem.getSolution())
                 .difficulty(problem.getDifficulty())
                 .customRank(problem.getCustomRank())
-                .createdAt(problem.getCreatedAt())
-                .updatedAt(problem.getUpdatedAt())
-                .files(fileResponses)
+                .files(files)
                 .build();
     }
 
-    private ProblemFileResponse toFileResponse(ProblemFile file) {
-        return ProblemFileResponse.builder()
-                .id(file.getId())
-                .fileName(file.getFileName())
-                .fileExtension(file.getFileExtension())
-                .filePath(file.getFilePath())
-                .fileSize(file.getFileSize())
-                .createdAt(file.getCreatedAt())
-                .openWith(fileTypeRegistry.getOpenWith(file.getFileExtension()))
-                .build();
+    private String buildFolderName(String code, String title) {
+        String raw = code + "-" + title;
+        return raw.replaceAll("[^a-zA-Z0-9._-]", "_")
+                  .replaceAll("_+", "_")
+                  .replaceAll("^_|_$", "")
+                  .toLowerCase();
+    }
+
+    private String getExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        return dot > 0 ? filename.substring(dot + 1).toLowerCase() : "";
     }
 }

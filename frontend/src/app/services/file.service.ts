@@ -9,43 +9,34 @@ export class FileService {
 
   constructor(private http: HttpClient) {}
 
-  getFilesForProblem(problemId: number): Observable<ProblemFile[]> {
-    return this.http.get<ProblemFile[]>(`${this.apiUrl}/problem/${problemId}`);
+  createFile(folderId: string, request: CreateFileRequest): Observable<ProblemFile> {
+    return this.http.post<ProblemFile>(`${this.apiUrl}/problem/${folderId}/create`, request);
   }
 
-  createFile(problemId: number, request: CreateFileRequest): Observable<ProblemFile> {
-    return this.http.post<ProblemFile>(`${this.apiUrl}/problem/${problemId}/create`, request);
-  }
-
-  uploadFile(problemId: number, file: File): Observable<ProblemFile> {
+  uploadFile(folderId: string, file: File): Observable<ProblemFile> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<ProblemFile>(`${this.apiUrl}/problem/${problemId}/upload`, formData);
+    return this.http.post<ProblemFile>(`${this.apiUrl}/problem/${folderId}/upload`, formData);
   }
 
-  getFileContent(fileId: number): Observable<{ content: string }> {
-    return this.http.get<{ content: string }>(`${this.apiUrl}/${fileId}/content`);
+  getFileContent(folderId: string, fileName: string): Observable<{ content: string }> {
+    return this.http.get<{ content: string }>(`${this.apiUrl}/problem/${folderId}/${fileName}/content`);
   }
 
-  saveFileContent(fileId: number, content: string): Observable<void> {
-    return this.http.put<void>(`${this.apiUrl}/${fileId}/content`, { content });
+  saveFileContent(folderId: string, fileName: string, content: string): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/problem/${folderId}/${fileName}/content`, { content });
   }
 
-  deleteFile(fileId: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${fileId}`);
+  deleteFile(folderId: string, fileName: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/problem/${folderId}/${fileName}`);
   }
 
-  getDownloadUrl(fileId: number): string {
-    return `${this.apiUrl}/${fileId}/download`;
+  openFileLocally(folderId: string, fileName: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/problem/${folderId}/${fileName}/open`, {});
   }
 
   getSupportedTypes(): Observable<{ [key: string]: string }> {
     return this.http.get<{ [key: string]: string }>(`${this.apiUrl}/supported-types`);
-  }
-
-  /** Ask the backend to open the file with the OS default app (e.g. VS Code, Excalidraw desktop). */
-  openFileLocally(fileId: number): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${fileId}/open-local`, {});
   }
 
   getStoragePath(): Observable<{ path: string }> {
@@ -56,9 +47,8 @@ export class FileService {
     return this.http.post<{ path: string }>(`${this.apiUrl}/config/storage-path`, { path });
   }
 
-  openFile(file: ProblemFile): void {
-    // Always open via backend so the OS uses the correct native app
-    this.openFileLocally(file.id).subscribe({
+  openFile(folderId: string, file: ProblemFile): void {
+    this.openFileLocally(folderId, file.fileName).subscribe({
       error: (err) => console.error('Failed to open file locally:', err)
     });
   }

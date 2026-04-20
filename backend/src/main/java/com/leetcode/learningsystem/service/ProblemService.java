@@ -8,11 +8,11 @@ import java.util.List;
 
 public interface ProblemService {
     ProblemResponse createProblem(ProblemRequest request);
-    ProblemResponse updateProblem(Long id, ProblemRequest request);
-    ProblemResponse getProblem(Long id);
+    ProblemResponse updateProblem(String id, ProblemRequest request);
+    ProblemResponse getProblem(String id);
     List<ProblemResponse> getAllProblems();
     List<ProblemResponse> queryProblems(Difficulty difficulty, QuestionType questionType,
                                          Integer minRank, Integer maxRank, String search);
-    void deleteProblem(Long id);
+    void deleteProblem(String id);
     StatsResponse getStats();
 }

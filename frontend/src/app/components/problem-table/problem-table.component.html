@@ -60,12 +60,12 @@
           <div class="files-container">
             <div class="file-chips">
               <span *ngFor="let file of problem.files" class="file-chip"
-                    (click)="openFile(file)"
-                    (mouseenter)="showPreview(file)"
+                    (click)="openFile(problem.id, file)"
+                    (mouseenter)="showPreview(problem.id, file)"
                     (mouseleave)="hidePreview()">
                 <span class="material-icons file-icon">{{ getFileIcon(file.fileExtension) }}</span>
                 <span class="file-name">{{ file.fileName }}</span>
-                <span class="material-icons file-delete" (click)="deleteFileItem(file.id, $event)">close</span>
+                <span class="material-icons file-delete" (click)="deleteFileItem(problem.id, file.fileName, $event)">close</span>
               </span>
             </div>
             <div class="file-actions">

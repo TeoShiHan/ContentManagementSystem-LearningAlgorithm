@@ -34,7 +34,7 @@ export class ProblemTableComponent implements OnInit {
 
   // Create file modal
   showFileModal = false;
-  fileModalProblemId: number | null = null;
+  fileModalProblemId: string | null = null;
   newFileName = '';
   newFileExtension = 'txt';
 
@@ -145,7 +145,7 @@ export class ProblemTableComponent implements OnInit {
     }
   }
 
-  deleteProblem(id: number): void {
+  deleteProblem(id: string): void {
     if (confirm('Are you sure you want to delete this problem and all associated files?')) {
       this.problemService.delete(id).subscribe({
         next: () => this.loadProblems(),
@@ -155,7 +155,7 @@ export class ProblemTableComponent implements OnInit {
   }
 
   // File operations
-  openFileCreateModal(problemId: number): void {
+  openFileCreateModal(problemId: string): void {
     this.fileModalProblemId = problemId;
     this.newFileName = '';
     this.newFileExtension = 'txt';
@@ -178,7 +178,7 @@ export class ProblemTableComponent implements OnInit {
     });
   }
 
-  uploadFile(event: Event, problemId: number): void {
+  uploadFile(event: Event, problemId: string): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     this.fileService.uploadFile(problemId, input.files[0]).subscribe({
@@ -188,14 +188,14 @@ export class ProblemTableComponent implements OnInit {
     input.value = '';
   }
 
-  openFile(file: ProblemFile): void {
-    this.fileService.openFile(file);
+  openFile(problemId: string, file: ProblemFile): void {
+    this.fileService.openFile(problemId, file);
   }
 
-  deleteFileItem(fileId: number, event: Event): void {
+  deleteFileItem(problemId: string, fileName: string, event: Event): void {
     event.stopPropagation();
     if (confirm('Delete this file?')) {
-      this.fileService.deleteFile(fileId).subscribe({
+      this.fileService.deleteFile(problemId, fileName).subscribe({
         next: () => this.loadProblems(),
         error: (err) => console.error('Delete file failed:', err)
       });
@@ -203,10 +203,10 @@ export class ProblemTableComponent implements OnInit {
   }
 
   // Preview on hover
-  showPreview(file: ProblemFile): void {
+  showPreview(problemId: string, file: ProblemFile): void {
     const textExts = ['txt', 'cpp', 'c', 'java', 'py', 'js', 'ts', 'go', 'rs', 'md', 'json', 'svg'];
     if (textExts.includes(file.fileExtension)) {
-      this.fileService.getFileContent(file.id).subscribe({
+      this.fileService.getFileContent(problemId, file.fileName).subscribe({
         next: (res) => {
           this.previewContent = res.content;
           this.previewFileName = file.fileName;
@@ -234,14 +234,16 @@ export class ProblemTableComponent implements OnInit {
 
   saveStoragePath(): void {
     if (!this.settingsPath) return;
-    this.fileService.setStoragePath(this.settingsPath).subscribe({
+    // Strip surrounding quotes that users sometimes paste from explorer
+    const cleanPath = this.settingsPath.trim().replace(/^["']|["']$/g, '');
+    this.fileService.setStoragePath(cleanPath).subscribe({
       next: (res) => {
         this.settingsPath = res.path;
         this.settingsMessage = 'Storage path updated successfully!';
         this.settingsError = false;
       },
       error: (err) => {
-        this.settingsMessage = 'Failed to update path: ' + (err.error?.error || err.message);
+        this.settingsMessage = 'Failed to update path: ' + (err.error?.error || err.statusText || err.message);
         this.settingsError = true;
       }
     });
@@ -261,7 +263,7 @@ export class ProblemTableComponent implements OnInit {
     return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
 
-  trackByProblem(index: number, item: Problem): number {
+  trackByProblem(index: number, item: Problem): string {
     return item.id;
   }
 

@@ -1,34 +1,27 @@
 package com.leetcode.learningsystem.service.impl;
 
-import com.leetcode.learningsystem.model.ProblemFile;
-import com.leetcode.learningsystem.repository.ProblemFileRepository;
+import com.leetcode.learningsystem.dto.ProblemFileResponse;
 import com.leetcode.learningsystem.service.FileStorageService;
 import com.leetcode.learningsystem.service.FileTypeRegistry;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.util.List;
 
 @Service
 public class FileStorageServiceImpl implements FileStorageService {
 
-    private final ProblemFileRepository fileRepository;
     private final FileTypeRegistry fileTypeRegistry;
-    private Path storageRoot;
+    private volatile Path storageRoot;
 
     @Value("${app.storage.base-path}")
     private String basePath;
 
-    public FileStorageServiceImpl(ProblemFileRepository fileRepository, FileTypeRegistry fileTypeRegistry) {
-        this.fileRepository = fileRepository;
+    public FileStorageServiceImpl(FileTypeRegistry fileTypeRegistry) {
         this.fileTypeRegistry = fileTypeRegistry;
     }
 
@@ -43,123 +36,88 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     @Override
-    public ProblemFile createFile(Long problemId, String fileName, String fileExtension) {
+    public Path getStorageRoot() {
+        return storageRoot;
+    }
+
+    @Override
+    public ProblemFileResponse createFile(String folderId, String fileName, String fileExtension) {
         String sanitizedName = sanitizeFileName(fileName);
         String ext = fileExtension.toLowerCase().replaceAll("[^a-z0-9]", "");
         String fullName = sanitizedName + "." + ext;
 
-        Path problemDir = storageRoot.resolve(String.valueOf(problemId));
+        Path problemDir = storageRoot.resolve(folderId);
         try {
             Files.createDirectories(problemDir);
             Path filePath = problemDir.resolve(fullName);
 
-            // Write default template
             String template = fileTypeRegistry.getDefaultTemplate(ext);
             Files.writeString(filePath, template, StandardCharsets.UTF_8);
 
-            ProblemFile pf = ProblemFile.builder()
-                    .problemId(problemId)
-                    .fileName(fullName)
-                    .fileExtension(ext)
-                    .filePath(problemId + "/" + fullName)
-                    .fileSize(Files.size(filePath))
-                    .build();
-
-            return fileRepository.save(pf);
+            return toResponse(filePath);
         } catch (IOException e) {
             throw new RuntimeException("Failed to create file: " + fullName, e);
         }
     }
 
     @Override
-    public ProblemFile uploadFile(Long problemId, MultipartFile file) {
+    public ProblemFileResponse uploadFile(String folderId, MultipartFile file) {
         String originalName = sanitizeFileName(file.getOriginalFilename());
-        String ext = getExtension(originalName);
 
-        Path problemDir = storageRoot.resolve(String.valueOf(problemId));
+        Path problemDir = storageRoot.resolve(folderId);
         try {
             Files.createDirectories(problemDir);
             Path targetPath = problemDir.resolve(originalName);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-            ProblemFile pf = ProblemFile.builder()
-                    .problemId(problemId)
-                    .fileName(originalName)
-                    .fileExtension(ext)
-                    .filePath(problemId + "/" + originalName)
-                    .fileSize(file.getSize())
-                    .build();
-
-            return fileRepository.save(pf);
+            return toResponse(targetPath);
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload file: " + originalName, e);
         }
     }
 
     @Override
-    public Resource loadFile(Long fileId) {
-        ProblemFile pf = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
-        try {
-            Path filePath = storageRoot.resolve(pf.getFilePath()).normalize();
-            Resource resource = new UrlResource(filePath.toUri());
-            if (resource.exists()) {
-                return resource;
-            }
-            throw new RuntimeException("File not found on disk: " + pf.getFilePath());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("File not found: " + fileId, e);
-        }
-    }
+    public String readTextContent(String folderId, String fileName) {
+        Path filePath = storageRoot.resolve(folderId).resolve(fileName).normalize();
+        validatePathSafety(filePath);
+        String ext = getExtension(fileName);
 
-    @Override
-    public String readTextContent(Long fileId) {
-        ProblemFile pf = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
-
-        if (!fileTypeRegistry.isTextBased(pf.getFileExtension())) {
-            throw new RuntimeException("File is not text-based: " + pf.getFileName());
+        if (!fileTypeRegistry.isTextBased(ext)) {
+            throw new RuntimeException("File is not text-based: " + fileName);
         }
 
         try {
-            Path filePath = storageRoot.resolve(pf.getFilePath()).normalize();
             return Files.readString(filePath, StandardCharsets.UTF_8);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read file: " + pf.getFileName(), e);
+            throw new RuntimeException("Failed to read file: " + fileName, e);
         }
     }
 
     @Override
-    public void saveTextContent(Long fileId, String content) {
-        ProblemFile pf = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
-
+    public void saveTextContent(String folderId, String fileName, String content) {
+        Path filePath = storageRoot.resolve(folderId).resolve(fileName).normalize();
+        validatePathSafety(filePath);
         try {
-            Path filePath = storageRoot.resolve(pf.getFilePath()).normalize();
             Files.writeString(filePath, content, StandardCharsets.UTF_8);
-            pf.setFileSize(Files.size(filePath));
-            fileRepository.save(pf);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to save file: " + pf.getFileName(), e);
+            throw new RuntimeException("Failed to save file: " + fileName, e);
         }
     }
 
     @Override
-    public void deleteFile(Long fileId) {
-        ProblemFile pf = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
+    public void deleteFile(String folderId, String fileName) {
+        Path filePath = storageRoot.resolve(folderId).resolve(fileName).normalize();
+        validatePathSafety(filePath);
         try {
-            Path filePath = storageRoot.resolve(pf.getFilePath()).normalize();
             Files.deleteIfExists(filePath);
-            fileRepository.delete(pf);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to delete file: " + pf.getFileName(), e);
+            throw new RuntimeException("Failed to delete file: " + fileName, e);
         }
     }
 
     @Override
-    public void deleteProblemDirectory(Long problemId) {
-        Path problemDir = storageRoot.resolve(String.valueOf(problemId));
+    public void deleteProblemDirectory(String folderId) {
+        Path problemDir = storageRoot.resolve(folderId);
         try {
             if (Files.exists(problemDir)) {
                 try (var stream = Files.walk(problemDir)) {
@@ -170,33 +128,33 @@ public class FileStorageServiceImpl implements FileStorageService {
                 }
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to delete problem directory: " + problemId, e);
+            throw new RuntimeException("Failed to delete problem directory: " + folderId, e);
         }
     }
 
     @Override
-    public List<ProblemFile> getFilesForProblem(Long problemId) {
-        return fileRepository.findByProblemId(problemId);
-    }
+    public void openFileLocally(String folderId, String fileName) {
+        Path filePath = storageRoot.resolve(folderId).resolve(fileName).normalize();
+        validatePathSafety(filePath);
+        String absPath = filePath.toAbsolutePath().toString();
+        String ext = getExtension(fileName);
 
-    @Override
-    public void openFileLocally(Long fileId) {
-        String absPath = getAbsolutePath(fileId);
         try {
-            // Use Windows "start" to open with default associated application
-            ProcessBuilder pb = new ProcessBuilder("cmd", "/c", "start", "", absPath);
+            ProcessBuilder pb;
+            if (fileTypeRegistry.isTextBased(ext)
+                    && !"excalidraw".equals(ext)
+                    && !"drawio".equals(ext)) {
+                // Open text/code files in VS Code
+                pb = new ProcessBuilder("code", absPath);
+            } else {
+                // Open with system default (excalidraw desktop, drawio, images, etc.)
+                pb = new ProcessBuilder("cmd", "/c", "start", "", absPath);
+            }
             pb.redirectErrorStream(true);
             pb.start();
         } catch (IOException e) {
             throw new RuntimeException("Failed to open file locally: " + absPath, e);
         }
-    }
-
-    @Override
-    public String getAbsolutePath(Long fileId) {
-        ProblemFile pf = fileRepository.findById(fileId)
-                .orElseThrow(() -> new RuntimeException("File not found: " + fileId));
-        return storageRoot.resolve(pf.getFilePath()).normalize().toString();
     }
 
     @Override
@@ -216,9 +174,38 @@ public class FileStorageServiceImpl implements FileStorageService {
         this.basePath = newPath;
     }
 
+    public ProblemFileResponse toResponse(Path filePath) {
+        String name = filePath.getFileName().toString();
+        String ext = getExtension(name);
+        try {
+            return ProblemFileResponse.builder()
+                    .id(name)
+                    .fileName(name)
+                    .fileExtension(ext)
+                    .filePath(filePath.toAbsolutePath().toString())
+                    .fileSize(Files.size(filePath))
+                    .openWith(fileTypeRegistry.getOpenWith(ext))
+                    .build();
+        } catch (IOException e) {
+            return ProblemFileResponse.builder()
+                    .id(name)
+                    .fileName(name)
+                    .fileExtension(ext)
+                    .filePath(filePath.toAbsolutePath().toString())
+                    .fileSize(0L)
+                    .openWith(fileTypeRegistry.getOpenWith(ext))
+                    .build();
+        }
+    }
+
+    private void validatePathSafety(Path resolved) {
+        if (!resolved.startsWith(storageRoot)) {
+            throw new RuntimeException("Path traversal detected");
+        }
+    }
+
     private String sanitizeFileName(String name) {
         if (name == null) return "unnamed";
-        // Only allow alphanumeric, dots, hyphens, underscores
         return name.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 

@@ -1,22 +1,19 @@
 package com.leetcode.learningsystem.service;
 
-import com.leetcode.learningsystem.model.ProblemFile;
-import org.springframework.core.io.Resource;
+import com.leetcode.learningsystem.dto.ProblemFileResponse;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.nio.file.Path;
 
 public interface FileStorageService {
-    ProblemFile createFile(Long problemId, String fileName, String fileExtension);
-    ProblemFile uploadFile(Long problemId, MultipartFile file);
-    Resource loadFile(Long fileId);
-    String readTextContent(Long fileId);
-    void saveTextContent(Long fileId, String content);
-    void deleteFile(Long fileId);
-    void deleteProblemDirectory(Long problemId);
-    List<ProblemFile> getFilesForProblem(Long problemId);
-    void openFileLocally(Long fileId);
-    String getAbsolutePath(Long fileId);
+    ProblemFileResponse createFile(String folderId, String fileName, String fileExtension);
+    ProblemFileResponse uploadFile(String folderId, MultipartFile file);
+    String readTextContent(String folderId, String fileName);
+    void saveTextContent(String folderId, String fileName, String content);
+    void deleteFile(String folderId, String fileName);
+    void deleteProblemDirectory(String folderId);
+    void openFileLocally(String folderId, String fileName);
     String getStorageBasePath();
     void setStorageBasePath(String newPath);
+    Path getStorageRoot();
 }

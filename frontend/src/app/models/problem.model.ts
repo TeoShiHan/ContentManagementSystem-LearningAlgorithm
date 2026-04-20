@@ -1,5 +1,5 @@
 export interface Problem {
-  id: number;
+  id: string;           // folder name on disk
   problemCode: string;
   title: string;
   leetcodeLink: string;
@@ -7,8 +7,6 @@ export interface Problem {
   solution: string;
   difficulty: Difficulty;
   customRank: number;
-  createdAt: string;
-  updatedAt: string;
   files: ProblemFile[];
 }
 
@@ -23,12 +21,11 @@ export interface ProblemRequest {
 }
 
 export interface ProblemFile {
-  id: number;
+  id: string;           // file name on disk
   fileName: string;
   fileExtension: string;
-  filePath: string;
+  filePath: string;     // absolute path on disk
   fileSize: number;
-  createdAt: string;
   openWith: string;
 }
 

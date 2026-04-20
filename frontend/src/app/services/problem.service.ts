@@ -13,7 +13,7 @@ export class ProblemService {
     return this.http.get<Problem[]>(this.apiUrl);
   }
 
-  getById(id: number): Observable<Problem> {
+  getById(id: string): Observable<Problem> {
     return this.http.get<Problem>(`${this.apiUrl}/${id}`);
   }
 
@@ -21,11 +21,11 @@ export class ProblemService {
     return this.http.post<Problem>(this.apiUrl, request);
   }
 
-  update(id: number, request: ProblemRequest): Observable<Problem> {
+  update(id: string, request: ProblemRequest): Observable<Problem> {
     return this.http.put<Problem>(`${this.apiUrl}/${id}`, request);
   }
 
-  delete(id: number): Observable<void> {
+  delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 

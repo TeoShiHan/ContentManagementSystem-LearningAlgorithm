@@ -2,19 +2,16 @@ package com.leetcode.learningsystem.dto;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ProblemFileResponse {
-    private Long id;
+    private String id;          // file name (acts as identifier)
     private String fileName;
     private String fileExtension;
-    private String filePath;
+    private String filePath;    // absolute path on disk
     private Long fileSize;
-    private LocalDateTime createdAt;
-    private String openWith; // hint for frontend: "vscode", "web-excalidraw", "web-drawio", "browser"
+    private String openWith;    // hint: "vscode", "web-excalidraw", "web-drawio", "browser"
 }

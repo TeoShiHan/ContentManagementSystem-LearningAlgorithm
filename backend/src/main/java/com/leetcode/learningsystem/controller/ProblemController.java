@@ -28,13 +28,13 @@ public class ProblemController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProblemResponse> updateProblem(@PathVariable Long id,
+    public ResponseEntity<ProblemResponse> updateProblem(@PathVariable String id,
                                                           @Valid @RequestBody ProblemRequest request) {
         return ResponseEntity.ok(problemService.updateProblem(id, request));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProblemResponse> getProblem(@PathVariable Long id) {
+    public ResponseEntity<ProblemResponse> getProblem(@PathVariable String id) {
         return ResponseEntity.ok(problemService.getProblem(id));
     }
 
@@ -54,7 +54,7 @@ public class ProblemController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProblem(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProblem(@PathVariable String id) {
         problemService.deleteProblem(id);
         return ResponseEntity.noContent().build();
     }
