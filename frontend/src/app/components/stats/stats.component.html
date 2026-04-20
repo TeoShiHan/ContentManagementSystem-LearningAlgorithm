@@ -1,0 +1,61 @@
+<div class="stats-container" *ngIf="stats">
+  <!-- Summary Cards -->
+  <div class="summary-cards">
+    <div class="stat-card total">
+      <div class="stat-icon"><span class="material-icons">functions</span></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ stats.totalProblems }}</div>
+        <div class="stat-label">Total Problems</div>
+      </div>
+    </div>
+    <div class="stat-card easy">
+      <div class="stat-icon"><span class="material-icons">check_circle</span></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ stats.easyCount }}</div>
+        <div class="stat-label">Easy</div>
+      </div>
+    </div>
+    <div class="stat-card medium">
+      <div class="stat-icon"><span class="material-icons">trending_up</span></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ stats.mediumCount }}</div>
+        <div class="stat-label">Medium</div>
+      </div>
+    </div>
+    <div class="stat-card hard">
+      <div class="stat-icon"><span class="material-icons">local_fire_department</span></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ stats.hardCount }}</div>
+        <div class="stat-label">Hard</div>
+      </div>
+    </div>
+    <div class="stat-card rank">
+      <div class="stat-icon"><span class="material-icons">star</span></div>
+      <div class="stat-info">
+        <div class="stat-value">{{ stats.averageCustomRank }}</div>
+        <div class="stat-label">Avg Rank</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>Difficulty Distribution</h3>
+      <div class="chart-wrapper">
+        <canvas #difficultyChart></canvas>
+      </div>
+    </div>
+    <div class="chart-card chart-wide">
+      <h3>Problems by Category</h3>
+      <div class="chart-wrapper chart-tall">
+        <canvas #typeChart></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="loading" *ngIf="!stats">
+  <span class="material-icons spinning">sync</span>
+  Loading statistics...
+</div>

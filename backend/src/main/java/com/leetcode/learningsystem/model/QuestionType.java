@@ -1,0 +1,30 @@
+package com.leetcode.learningsystem.model;
+
+public enum QuestionType {
+    ARRAY,
+    STRING,
+    HASH_TABLE,
+    DYNAMIC_PROGRAMMING,
+    MATH,
+    SORTING,
+    GREEDY,
+    DEPTH_FIRST_SEARCH,
+    BINARY_SEARCH,
+    BREADTH_FIRST_SEARCH,
+    TREE,
+    MATRIX,
+    TWO_POINTERS,
+    BIT_MANIPULATION,
+    STACK,
+    HEAP,
+    GRAPH,
+    LINKED_LIST,
+    SLIDING_WINDOW,
+    BACKTRACKING,
+    DIVIDE_AND_CONQUER,
+    TRIE,
+    UNION_FIND,
+    MONOTONIC_STACK,
+    SEGMENT_TREE,
+    OTHER
+}
