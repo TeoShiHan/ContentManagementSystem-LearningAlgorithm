@@ -21,6 +21,9 @@ public class FileStorageServiceImpl implements FileStorageService {
     @Value("${app.storage.base-path}")
     private String basePath;
 
+    @Value("${app.templates.base-path:../templates}")
+    private String templatesBasePath;
+
     public FileStorageServiceImpl(FileTypeRegistry fileTypeRegistry) {
         this.fileTypeRegistry = fileTypeRegistry;
     }
@@ -51,8 +54,13 @@ public class FileStorageServiceImpl implements FileStorageService {
             Files.createDirectories(problemDir);
             Path filePath = problemDir.resolve(fullName);
 
-            String template = fileTypeRegistry.getDefaultTemplate(ext);
-            Files.writeString(filePath, template, StandardCharsets.UTF_8);
+            Path templateFile = Paths.get(templatesBasePath).toAbsolutePath().resolve("template." + ext);
+            if (Files.exists(templateFile)) {
+                Files.copy(templateFile, filePath, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                String template = fileTypeRegistry.getDefaultTemplate(ext);
+                Files.writeString(filePath, template, StandardCharsets.UTF_8);
+            }
 
             return toResponse(filePath);
         } catch (IOException e) {
@@ -140,14 +148,13 @@ public class FileStorageServiceImpl implements FileStorageService {
         String ext = getExtension(fileName);
 
         try {
+            String openWith = fileTypeRegistry.getOpenWith(ext);
             ProcessBuilder pb;
-            if (fileTypeRegistry.isTextBased(ext)
-                    && !"excalidraw".equals(ext)
-                    && !"drawio".equals(ext)) {
-                // Open text/code files in VS Code
-                pb = new ProcessBuilder("code", absPath);
+            if ("vscode".equals(openWith)) {
+                // Use cmd /c code so Windows can find code.cmd on PATH
+                pb = new ProcessBuilder("cmd", "/c", "code", absPath);
             } else {
-                // Open with system default (excalidraw desktop, drawio, images, etc.)
+                // Open with system default app (images, pdf, etc.)
                 pb = new ProcessBuilder("cmd", "/c", "start", "", absPath);
             }
             pb.redirectErrorStream(true);

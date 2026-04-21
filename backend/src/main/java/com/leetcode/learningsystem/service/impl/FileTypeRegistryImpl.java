@@ -25,7 +25,7 @@ public class FileTypeRegistryImpl implements FileTypeRegistry {
         register("rs",         "vscode",          "text/x-rustsrc",               true,  "fn solution() {\n    \n}\n");
 
         // Diagram files - open in web apps
-        register("excalidraw", "web-excalidraw",  "application/json",             true,  "{\n  \"type\": \"excalidraw\",\n  \"version\": 2,\n  \"source\": \"leetcode-learning-system\",\n  \"elements\": [],\n  \"appState\": {\n    \"gridSize\": null,\n    \"viewBackgroundColor\": \"#ffffff\"\n  },\n  \"files\": {}\n}");
+        register("excalidraw", "vscode",          "application/json",             true,  "{\n  \"type\": \"excalidraw\",\n  \"version\": 2,\n  \"source\": \"leetcode-learning-system\",\n  \"elements\": [],\n  \"appState\": {\n    \"gridSize\": null,\n    \"viewBackgroundColor\": \"#ffffff\"\n  },\n  \"files\": {}\n}");
         register("drawio",     "web-drawio",      "application/xml",              true,  "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<mxfile host=\"app.diagrams.net\">\n  <diagram name=\"Page-1\" id=\"page1\">\n    <mxGraphModel>\n      <root>\n        <mxCell id=\"0\"/>\n        <mxCell id=\"1\" parent=\"0\"/>\n      </root>\n    </mxGraphModel>\n  </diagram>\n</mxfile>");
 
         // Image files
